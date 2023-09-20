@@ -1,5 +1,6 @@
 package kz.qBots.fisrtBot.service;
 
+import com.vdurmont.emoji.EmojiParser;
 import kz.qBots.fisrtBot.config.BotConfig;
 import kz.qBots.fisrtBot.model.User;
 import kz.qBots.fisrtBot.repository.UserRepository;
@@ -14,6 +15,8 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.sql.Timestamp;
@@ -64,7 +67,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
     private void startCommandReceived(long chatId,String firstName){
-        String answer="Hi, "+firstName+", nice to meet you!";
+        String answer= EmojiParser.parseToUnicode("Hi, "+firstName+", nice to meet you!"+" :blush:");
         log.info("Replied to user"+firstName);
         sendMessage(chatId,answer);
     }
@@ -72,11 +75,27 @@ public class TelegramBot extends TelegramLongPollingBot {
         SendMessage message=new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
+        message.setReplyMarkup(setKeyboard());
         try {
             execute(message);
         }catch (TelegramApiException e){
             log.error("Error occurred: "+e.getMessage());
         }
+    }
+    private ReplyKeyboardMarkup setKeyboard(){
+        ReplyKeyboardMarkup keyboardMarkup=new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboardRows=new ArrayList<>();
+        KeyboardRow row=new KeyboardRow();
+        row.add("weather");
+        row.add("get random joke");
+        keyboardRows.add(row);
+        row=new KeyboardRow();
+        row.add("register");
+        row.add("check my data");
+        row.add("delete my data");
+        keyboardRows.add(row);
+        keyboardMarkup.setKeyboard(keyboardRows);
+        return keyboardMarkup;
     }
     private void registerUser(Message message){
         if(userRepository.findById(message.getChatId()).isEmpty()){
