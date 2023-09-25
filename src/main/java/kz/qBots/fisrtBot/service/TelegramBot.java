@@ -4,7 +4,6 @@ import com.vdurmont.emoji.EmojiParser;
 import kz.qBots.fisrtBot.config.BotConfig;
 import kz.qBots.fisrtBot.model.User;
 import kz.qBots.fisrtBot.repository.UserRepository;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -36,6 +35,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             "Type /start to see a welcome message\n\n" +
             "Type /mydata to see a data store about yourself\n\n" +
             "Type /help to see this message again";
+    static final String YES_BUTTON = "YES_BUTTON";
+    static final String NO_BUTTON = "NO_BUTTON";
 
     public TelegramBot(BotConfig botConfig) {
         this.botConfig = botConfig;
@@ -51,51 +52,57 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         }
     }
+
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-            if(messageText.contains("/send")){
-                String messageToSend=EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
-                List<User> users=userRepository.findAll();
-                for(User user:users){
-                    sendMessage(user.getChatId(),messageToSend);
+            if (messageText.contains("/send")) {
+                String messageToSend = EmojiParser.parseToUnicode(messageText.substring(messageText.indexOf(" ")));
+                List<User> users = userRepository.findAll();
+                for (User user : users) {
+                    prepareAndSendMessage(user.getChatId(), messageToSend);
                 }
-            }
-            switch (messageText) {
-                case "/start":
-                    registerUser(update.getMessage());
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    break;
-                case "/help":
-                    sendMessage(chatId, HELP_TEXT);
-                    break;
-                case "/register":
-                    register(chatId);
-                    break;
-                default:
-                    sendMessage(chatId, "Sorry, command was not realize");
+            } else {
+                switch (messageText) {
+                    case "/start":
+                        registerUser(update.getMessage());
+                        startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                        break;
+                    case "/help":
+                        prepareAndSendMessage(chatId, HELP_TEXT);
+                        break;
+                    case "/register":
+                        register(chatId);
+                        break;
+                    default:
+                        prepareAndSendMessage(chatId, "Sorry, command was not realize");
+                }
             }
         } else if (update.hasCallbackQuery()) {
             String callbackData = update.getCallbackQuery().getData();
             long messageId = update.getCallbackQuery().getMessage().getMessageId();
             long chatId = update.getCallbackQuery().getMessage().getChatId();
             String text = "";
-            if (callbackData.equals("YES_BUTTON")) {
+            if (callbackData.equals(YES_BUTTON)) {
                 text = "You pressed YES button";
-            } else if (callbackData.equals("NO_BUTTON")) {
+            } else if (callbackData.equals(NO_BUTTON)) {
                 text = "You pressed NO button";
             }
-            EditMessageText messageText = new EditMessageText();
-            messageText.setChatId(String.valueOf(chatId));
-            messageText.setText(text);
-            messageText.setMessageId((int) (messageId));
-            try {
-                execute(messageText);
-            } catch (TelegramApiException e) {
+            executeMessageText(text, chatId, messageId);
+        }
+    }
 
-            }
+    private void executeMessageText(String text, long chatId, long messageId) {
+        EditMessageText messageText = new EditMessageText();
+        messageText.setChatId(String.valueOf(chatId));
+        messageText.setText(text);
+        messageText.setMessageId((int) (messageId));
+        try {
+            execute(messageText);
+        } catch (TelegramApiException e) {
+
         }
     }
 
@@ -109,6 +116,15 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
         message.setReplyMarkup(setKeyboard());
+        executeMessage(message);
+    }
+    private void prepareAndSendMessage(long chatId,String text){
+        SendMessage message=new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(text);
+        executeMessage(message);
+    }
+    private void executeMessage(SendMessage message) {
         try {
             execute(message);
         } catch (TelegramApiException e) {
@@ -141,20 +157,16 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<InlineKeyboardButton> rowInLine = new ArrayList<>();
         InlineKeyboardButton yesButton = new InlineKeyboardButton();
         yesButton.setText("Yes");
-        yesButton.setCallbackData("YES_BUTTON");
+        yesButton.setCallbackData(YES_BUTTON);
         InlineKeyboardButton noButton = new InlineKeyboardButton();
         noButton.setText("No");
-        noButton.setCallbackData("NO_BUTTON");
+        noButton.setCallbackData(NO_BUTTON);
         rowInLine.add(yesButton);
         rowInLine.add(noButton);
         rowsInLine.add(rowInLine);
         markupInLine.setKeyboard(rowsInLine);
         message.setReplyMarkup(markupInLine);
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-
-        }
+        executeMessage(message);
     }
 
     private void registerUser(Message message) {
