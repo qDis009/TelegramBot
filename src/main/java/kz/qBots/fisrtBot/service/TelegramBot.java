@@ -2,9 +2,12 @@ package kz.qBots.fisrtBot.service;
 
 import com.vdurmont.emoji.EmojiParser;
 import kz.qBots.fisrtBot.config.BotConfig;
+import kz.qBots.fisrtBot.model.Ads;
 import kz.qBots.fisrtBot.model.User;
+import kz.qBots.fisrtBot.repository.AdsRepository;
 import kz.qBots.fisrtBot.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -29,6 +32,8 @@ import java.util.List;
 public class TelegramBot extends TelegramLongPollingBot {
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private AdsRepository adsRepository;
     final BotConfig botConfig;
     static final String HELP_TEXT = "This bot is created to demonstrate String capabilities.\n\n" +
             "You can execute commands from the main menu on the left or by typing a command:\n\n" +
@@ -191,5 +196,15 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public String getBotUsername() {
         return botConfig.getBotName();
+    }
+    @Scheduled(cron = "0 * * * * *")
+    private void sendAds(){
+        List<Ads> ads=adsRepository.findAll();
+        List<User> users=userRepository.findAll();
+        for(Ads ad:ads){
+            for(User user:users){
+                prepareAndSendMessage(user.getChatId(),ad.getAd());
+            }
+        }
     }
 }
